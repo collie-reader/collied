@@ -1,5 +1,3 @@
-use std::io;
-
 #[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -14,9 +12,6 @@ pub enum Error {
 
     #[error("forbidden")]
     Forbidden,
-
-    #[error("unauthorized")]
-    Unauthorized,
 
     #[error("failed to parse syndication feed")]
     SyndicationParsingFailure,
@@ -34,33 +29,15 @@ pub enum Error {
     Unknown,
 
     #[error(transparent)]
-    RusqliteError {
+    CollieCore {
         #[from]
-        source: rusqlite::Error,
+        source: collie::error::Error,
     },
 
     #[error(transparent)]
-    SeaQueryError {
+    CollieAuth {
         #[from]
-        source: sea_query::error::Error,
-    },
-
-    #[error(transparent)]
-    ReqwestError {
-        #[from]
-        source: reqwest::Error,
-    },
-
-    #[error(transparent)]
-    IoError {
-        #[from]
-        source: io::Error,
-    },
-
-    #[error("failed to ")]
-    JsonWebToken {
-        #[from]
-        source: jsonwebtoken::errors::Error,
+        source: collie::auth::error::Error,
     },
 }
 

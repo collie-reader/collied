@@ -1,26 +1,18 @@
-use std::{path::PathBuf, sync::Mutex};
-
 use clap::{Parser, Subcommand};
-use models::database;
-use rusqlite::Connection;
+use collie::{
+    auth::model::database::keys_table,
+    model::database::{self, feed_table, items_table, Connection},
+};
+use config::Config;
+use std::{path::PathBuf, sync::Mutex};
 
 mod config;
 mod error;
+mod serve;
 
-mod core {
-    pub mod auth {
-        pub mod key;
-        pub mod token;
-    }
-}
-
-mod models {
-    pub mod database;
-    pub mod key;
-}
-
-pub struct DbState {
-    db: Mutex<Connection>,
+mod adapter {
+    pub mod feed;
+    pub mod item;
 }
 
 #[derive(Parser)]
@@ -58,52 +50,45 @@ pub enum KeyCommands {
         #[arg(long)]
         description: Option<String>,
     },
-    /// Expire a key by its id
-    Expire {
-        #[arg(long)]
-        id: u32,
-    },
-    /// List all keys
-    List,
 }
 
 #[tokio::main]
 async fn main() {
     let config = read_config();
-    let db = open_database_connection(&config);
-    let _ = database::migrate(&db);
-
     let cli = Cli::parse();
-    let db_state = DbState { db: Mutex::new(db) };
 
     match &cli.commands {
         Commands::Serve { port, daemon } => {
             println!(
-                "Starting server on {} in {} mode",
+                "Starting server on {} in {} mode...",
                 port,
                 if *daemon { "daemon" } else { "foreground" }
             );
+
+            serve::serve(db_state(&config), &format!("0.0.0.0:{}", port), &config).await;
         }
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new key...");
-                let access_key = core::auth::key::create(&db_state, description).unwrap();
+                let access_key = collie::auth::key::create(db_state(&config), description).unwrap();
                 println!("Access key: {}", access_key);
-            }
-            KeyCommands::Expire { id } => {
-                core::auth::key::expire(&db_state, *id);
-            }
-            KeyCommands::List => {
-                core::auth::key::read_all(&db_state);
             }
         },
     }
 }
 
-fn open_database_connection(config: &config::Config) -> Connection {
-    models::database::open_connection(&PathBuf::from(config.database.path.clone())).unwrap()
+fn read_config() -> Config {
+    config::from(&PathBuf::from("data/config.toml"))
 }
 
-fn read_config() -> config::Config {
-    config::from(&PathBuf::from("data/config.toml"))
+fn db_state(config: &Config) -> Connection {
+    let db = database::open_connection(&PathBuf::from(&config.database.path)).unwrap();
+
+    let _ = database::Migration::new()
+        .add_table(feed_table())
+        .add_table(items_table())
+        .add_table(keys_table())
+        .migrate(&db);
+
+    Connection { db: Mutex::new(db) }
 }
