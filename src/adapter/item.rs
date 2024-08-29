@@ -3,10 +3,10 @@ use collie::model::item::{
     self, Item, ItemReadOption, ItemToCreate, ItemToUpdate, ItemToUpdateAll,
 };
 
-use crate::serve::AppState;
+use crate::config::SharedAppState;
 
 pub async fn create(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<ItemToCreate>,
 ) -> (StatusCode, Json<bool>) {
     match item::create(&conn, &arg) {
@@ -22,7 +22,7 @@ pub async fn create(
 }
 
 pub async fn read_all(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<Vec<Item>>) {
     match item::read_all(&conn, &arg) {
@@ -32,7 +32,7 @@ pub async fn read_all(
 }
 
 pub async fn count_all(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<i64>) {
     match item::count_all(&conn, &arg) {
@@ -48,7 +48,7 @@ pub async fn count_all(
 }
 
 pub async fn update(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<ItemToUpdate>,
 ) -> (StatusCode, Json<bool>) {
     match item::update(&conn, &arg) {
@@ -64,7 +64,7 @@ pub async fn update(
 }
 
 pub async fn update_all(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<ItemToUpdateAll>,
 ) -> (StatusCode, Json<bool>) {
     match item::update_all(&conn, &arg) {

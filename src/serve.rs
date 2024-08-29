@@ -2,23 +2,10 @@ use axum::{
     routing::{delete, get, patch, post},
     Router,
 };
-use collie::model::database::Connection;
-use std::sync::Arc;
 
-use crate::{adapter, config::Config};
+use crate::{adapter, config::SharedAppState};
 
-#[derive(Clone)]
-pub struct AppState {
-    pub conn: Arc<Connection>,
-    pub config: Config,
-}
-
-pub async fn serve(conn: Connection, addr: &str, config: &Config) {
-    let app_state = AppState {
-        conn: Arc::new(conn),
-        config: config.clone(),
-    };
-
+pub async fn serve(app_state: SharedAppState, addr: &str) {
     let app = Router::new()
         .route("/", get(echo))
         .route("/feed", get(adapter::feed::read_all))

@@ -1,10 +1,5 @@
 use clap::{Parser, Subcommand};
-use collie::{
-    auth::model::database::keys_table,
-    model::database::{self, feed_table, items_table, Connection},
-};
-use config::Config;
-use std::{path::PathBuf, sync::Mutex};
+use config::{AppState, SharedAppState};
 
 mod config;
 mod error;
@@ -54,7 +49,6 @@ pub enum KeyCommands {
 
 #[tokio::main]
 async fn main() {
-    let config = read_config();
     let cli = Cli::parse();
 
     match &cli.commands {
@@ -65,30 +59,15 @@ async fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            serve::serve(db_state(&config), &format!("0.0.0.0:{}", port), &config).await;
+            serve::serve(SharedAppState::new(), &format!("0.0.0.0:{}", port)).await;
         }
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new key...");
-                let access_key = collie::auth::key::create(db_state(&config), description).unwrap();
+                let access_key =
+                    collie::auth::key::create(AppState::new().conn, description).unwrap();
                 println!("Access key: {}", access_key);
             }
         },
     }
-}
-
-fn read_config() -> Config {
-    config::from(&PathBuf::from("data/config.toml"))
-}
-
-fn db_state(config: &Config) -> Connection {
-    let db = database::open_connection(&PathBuf::from(&config.database.path)).unwrap();
-
-    let _ = database::Migration::new()
-        .add_table(feed_table())
-        .add_table(items_table())
-        .add_table(keys_table())
-        .migrate(&db);
-
-    Connection { db: Mutex::new(db) }
 }

@@ -11,10 +11,10 @@ use collie::{
     },
 };
 
-use crate::serve::AppState;
+use crate::config::SharedAppState;
 
 pub async fn create(
-    State(AppState { conn, config }): State<AppState>,
+    State(SharedAppState { conn, config }): State<SharedAppState>,
     Json(arg): Json<FeedToCreate>,
 ) -> (StatusCode, Json<bool>) {
     if arg.link.is_empty() {
@@ -54,7 +54,7 @@ pub async fn create(
 }
 
 pub async fn read_all(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
 ) -> (StatusCode, Json<Vec<Feed>>) {
     match feed::read_all(&conn) {
         Ok(feeds) => (StatusCode::OK, Json(feeds)),
@@ -63,7 +63,7 @@ pub async fn read_all(
 }
 
 pub async fn read(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Path(id): Path<i32>,
 ) -> (StatusCode, Json<Option<Feed>>) {
     match feed::read(&conn, id) {
@@ -73,7 +73,7 @@ pub async fn read(
 }
 
 pub async fn update(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Json(arg): Json<FeedToUpdate>,
 ) -> (StatusCode, Json<bool>) {
     match feed::update(&conn, &arg) {
@@ -83,7 +83,7 @@ pub async fn update(
 }
 
 pub async fn delete(
-    State(AppState { conn, .. }): State<AppState>,
+    State(SharedAppState { conn, .. }): State<SharedAppState>,
     Path(id): Path<i32>,
 ) -> (StatusCode, Json<bool>) {
     match feed::delete(&conn, id) {
