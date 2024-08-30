@@ -10,6 +10,7 @@ use collie::auth::token::{self, Login};
 
 use crate::{adapter, config::SharedAppState};
 
+#[tokio::main]
 pub async fn serve(app_state: SharedAppState, addr: &str) {
     let gateway = Router::new()
         .route("/auth", get(adapter::auth::authorize))

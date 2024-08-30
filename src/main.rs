@@ -1,5 +1,8 @@
+use std::fs::OpenOptions;
+
 use clap::{Parser, Subcommand};
 use config::{AppState, SharedAppState};
+use daemonize::Daemonize;
 
 mod config;
 mod error;
@@ -48,8 +51,7 @@ pub enum KeyCommands {
     },
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let cli = Cli::parse();
 
     match &cli.commands {
@@ -60,7 +62,28 @@ async fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            serve::serve(SharedAppState::new(), &format!("0.0.0.0:{}", port)).await;
+            let app_state = SharedAppState::new();
+
+            if *daemon {
+                let daemonize = Daemonize::new().pid_file(&app_state.config.daemon.pid_file);
+                let daemonize = match &app_state.config.daemon.error_log {
+                    Some(error_log) => {
+                        daemonize.stderr(
+                            OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .read(true)
+                                .open(error_log)
+                                .unwrap()
+                        )
+                    }
+                    None => daemonize,
+                };
+
+                daemonize.start().unwrap();
+            }
+
+            serve::serve(app_state, &format!("0.0.0.0:{}", port));
         }
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {

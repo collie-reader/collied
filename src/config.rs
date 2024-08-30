@@ -43,10 +43,12 @@ impl SharedAppState {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
 pub struct Config {
     pub stage: String,
     pub database: DatabaseConfig,
     pub producer: ProducerConfig,
+    pub daemon: DaemonConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -58,6 +60,31 @@ pub struct DatabaseConfig {
 pub struct ProducerConfig {
     pub polling_frequency: u64,
     pub proxy: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DaemonConfig {
+    pub pid_file: String,
+    pub error_log: Option<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            stage: "production".to_string(),
+            database: DatabaseConfig {
+                path: "etc/collied/collie.db".to_string(),
+            },
+            producer: ProducerConfig {
+                polling_frequency: 600,
+                proxy: None,
+            },
+            daemon: DaemonConfig {
+                pid_file: "/tmp/collied.pid".to_string(),
+                error_log: None,
+            },
+        }
+    }
 }
 
 fn from(path: &PathBuf) -> Config {
