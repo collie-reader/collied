@@ -14,7 +14,7 @@ use collie::{
 use crate::config::SharedAppState;
 
 pub async fn create(
-    State(SharedAppState { conn, config }): State<SharedAppState>,
+    State(SharedAppState { conn, config, .. }): State<SharedAppState>,
     Json(arg): Json<FeedToCreate>,
 ) -> (StatusCode, Json<bool>) {
     if arg.link.is_empty() {

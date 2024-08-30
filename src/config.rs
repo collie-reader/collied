@@ -27,6 +27,7 @@ impl AppState {
 #[derive(Clone)]
 pub struct SharedAppState {
     pub conn: Arc<Connection>,
+    pub server_secret: String,
     pub config: Config,
 }
 
@@ -35,6 +36,7 @@ impl SharedAppState {
         let config = read_config();
         Self {
             conn: Arc::new(open_connection(&config)),
+            server_secret: collie::auth::key::generate_key(),
             config,
         }
     }

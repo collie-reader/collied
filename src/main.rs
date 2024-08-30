@@ -6,6 +6,7 @@ mod error;
 mod serve;
 
 mod adapter {
+    pub mod auth;
     pub mod feed;
     pub mod item;
 }
@@ -63,10 +64,12 @@ async fn main() {
         }
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
-                println!("Generating new key...");
-                let access_key =
+                println!("Generating new keys...");
+                let (access_key, secret_key) =
                     collie::auth::key::create(AppState::new().conn, description).unwrap();
+                println!("Register the following keys with your client. DO NOT share the secret key with anyone.");
                 println!("Access key: {}", access_key);
+                println!("Secret key: {}", secret_key);
             }
         },
     }
