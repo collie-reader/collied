@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::PathBuf,
-    sync::Mutex,
-};
+use std::{fs, path::PathBuf, sync::Mutex};
 
 use collie::{
     auth::model::database::keys_table,
@@ -17,8 +13,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
-        let config = read_config();
+    pub fn new(config_path: &Option<PathBuf>) -> Self {
+        let config = read_config(config_path);
         Self {
             conn: open_connection(&config),
             config,
@@ -72,9 +68,13 @@ impl Default for Config {
     }
 }
 
-fn read_config() -> Config {
-    let config = fs::read_to_string("config.toml")
-        .unwrap_or(fs::read_to_string("/etc/collied/config.toml").unwrap());
+fn read_config(path: &Option<PathBuf>) -> Config {
+    let config = match path {
+        Some(path) => fs::read_to_string(path).unwrap(),
+        None => fs::read_to_string("config.toml")
+            .unwrap_or(fs::read_to_string("/etc/collied/config.toml").unwrap()),
+    };
+
     toml::from_str(&config).expect("Failed to parse config file.")
 }
 

@@ -57,8 +57,11 @@ pub async fn serve(app_state: Arc<AppState>, addr: &str) {
         let AppState { conn, config, .. } = &*app_state;
 
         loop {
-            let _ = create_new_items(&conn, &config.producer.proxy);
-            tokio::time::sleep(std::time::Duration::from_secs(config.producer.polling_frequency)).await;
+            let _ = create_new_items(conn, &config.producer.proxy);
+            tokio::time::sleep(std::time::Duration::from_secs(
+                config.producer.polling_frequency,
+            ))
+            .await;
         }
     });
 }

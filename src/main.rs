@@ -1,4 +1,4 @@
-use std::{fs::OpenOptions, sync::Arc};
+use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
 use config::AppState;
@@ -17,6 +17,9 @@ mod adapter {
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    #[arg(short, long)]
+    config: Option<String>,
+
     #[command(subcommand)]
     commands: Commands,
 }
@@ -53,6 +56,7 @@ pub enum KeyCommands {
 
 fn main() {
     let cli = Cli::parse();
+    let config_path = cli.config.as_ref().map(PathBuf::from);
 
     match &cli.commands {
         Commands::Serve { port, daemon } => {
@@ -62,7 +66,7 @@ fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            let app_state = Arc::new(AppState::new());
+            let app_state = Arc::new(AppState::new(&config_path));
 
             if *daemon {
                 let daemonize = Daemonize::new().pid_file(&app_state.config.daemon.pid_file);
@@ -87,7 +91,8 @@ fn main() {
             KeyCommands::New { description } => {
                 println!("Generating new keys...");
                 let (access_key, secret_key) =
-                    collie::auth::key::create(AppState::new().conn, description).unwrap();
+                    collie::auth::key::create(AppState::new(&config_path).conn, description)
+                        .unwrap();
                 println!("Register the following keys with your client. DO NOT share the secret key with anyone.");
                 println!("Access key: {}", access_key);
                 println!("Secret key: {}", secret_key);
