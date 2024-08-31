@@ -11,13 +11,13 @@ HTTP 401
 
 # expired token
 GET http://127.0.0.1:33003/
-Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1MTYyMzkwMjIsImV4cCI6MTUxNjIzOTAyMn0.tJrElL9vX4Budo1oZ9VvaWzkDXQ8BO5Wc5Cp4WITSAo
+Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE1MTYyMzkwMjIsImV4cCI6MTUxNjIzOTAyMn0.Zny-oK4D-3ctQmpfzJT-s_KmQYdgq_3ZucOVXdtwoVY
 HTTP 401
 
 # valid keys
 GET http://127.0.0.1:33003/auth
 [BasicAuth]
-GUV7D83XkY6riwkWdw63lnRtfkQ2wGoV1kd3QAk6xSpNCteRqsrvt7Ta7oo0t4Mb: vXtqrLoYJUNsXG5Z2tKhmGZy3Grki0eqXfXAtns2LDe01MiYi56kXLJeXd2hfEZN
+access: secret
 HTTP 200
 [Captures]
 valid_token: jsonpath "$"
