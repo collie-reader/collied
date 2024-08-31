@@ -1,15 +1,18 @@
+use std::sync::Arc;
+
 use axum::{extract::State, http::StatusCode, Json};
 use collie::model::item::{
     self, Item, ItemReadOption, ItemToCreate, ItemToUpdate, ItemToUpdateAll,
 };
 
-use crate::config::SharedAppState;
+use crate::config::AppState;
 
 pub async fn create(
-    State(SharedAppState { conn, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(arg): Json<ItemToCreate>,
 ) -> (StatusCode, Json<bool>) {
-    match item::create(&conn, &arg) {
+    let AppState { conn, .. } = &*app_state;
+    match item::create(conn, &arg) {
         Ok(count) => {
             if count > 0 {
                 (StatusCode::OK, Json(true))
@@ -22,20 +25,22 @@ pub async fn create(
 }
 
 pub async fn read_all(
-    State(SharedAppState { conn, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<Vec<Item>>) {
-    match item::read_all(&conn, &arg) {
+    let AppState { conn, .. } = &*app_state;
+    match item::read_all(conn, &arg) {
         Ok(items) => (StatusCode::OK, Json(items)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(vec![])),
     }
 }
 
 pub async fn count_all(
-    State(SharedAppState { conn, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<i64>) {
-    match item::count_all(&conn, &arg) {
+    let AppState { conn, .. } = &*app_state;
+    match item::count_all(conn, &arg) {
         Ok(count) => {
             if count > 0 {
                 (StatusCode::OK, Json(count))
@@ -48,10 +53,11 @@ pub async fn count_all(
 }
 
 pub async fn update(
-    State(SharedAppState { conn, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(arg): Json<ItemToUpdate>,
 ) -> (StatusCode, Json<bool>) {
-    match item::update(&conn, &arg) {
+    let AppState { conn, .. } = &*app_state;
+    match item::update(conn, &arg) {
         Ok(count) => {
             if count > 0 {
                 (StatusCode::OK, Json(true))
@@ -64,10 +70,11 @@ pub async fn update(
 }
 
 pub async fn update_all(
-    State(SharedAppState { conn, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     Json(arg): Json<ItemToUpdateAll>,
 ) -> (StatusCode, Json<bool>) {
-    match item::update_all(&conn, &arg) {
+    let AppState { conn, .. } = &*app_state;
+    match item::update_all(conn, &arg) {
         Ok(count) => {
             if count > 0 {
                 (StatusCode::OK, Json(true))

@@ -1,6 +1,7 @@
 use std::{
+    fs,
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::Mutex,
 };
 
 use collie::{
@@ -12,6 +13,7 @@ use serde::Deserialize;
 pub struct AppState {
     pub conn: Connection,
     pub config: Config,
+    pub server_secret: String,
 }
 
 impl AppState {
@@ -20,24 +22,7 @@ impl AppState {
         Self {
             conn: open_connection(&config),
             config,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct SharedAppState {
-    pub conn: Arc<Connection>,
-    pub server_secret: String,
-    pub config: Config,
-}
-
-impl SharedAppState {
-    pub fn new() -> Self {
-        let config = read_config();
-        Self {
-            conn: Arc::new(open_connection(&config)),
             server_secret: collie::auth::key::generate_key(),
-            config,
         }
     }
 }
@@ -73,7 +58,7 @@ impl Default for Config {
         Self {
             stage: "production".to_string(),
             database: DatabaseConfig {
-                path: "etc/collied/collie.db".to_string(),
+                path: "/etc/collied/collie.db".to_string(),
             },
             producer: ProducerConfig {
                 polling_frequency: 600,
@@ -87,13 +72,10 @@ impl Default for Config {
     }
 }
 
-fn from(path: &PathBuf) -> Config {
-    let config = std::fs::read_to_string(path).expect("Failed to read config file.");
-    toml::from_str(&config).expect("Failed to parse config file.")
-}
-
 fn read_config() -> Config {
-    from(&PathBuf::from("data/config.toml"))
+    let config = fs::read_to_string("config.toml")
+        .unwrap_or(fs::read_to_string("/etc/collied/config.toml").unwrap());
+    toml::from_str(&config).expect("Failed to parse config file.")
 }
 
 fn open_connection(config: &Config) -> Connection {

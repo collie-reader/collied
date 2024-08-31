@@ -6,12 +6,16 @@ use axum::{
     routing::{get, patch},
     Router,
 };
-use collie::auth::token::{self, Login};
+use collie::{
+    auth::token::{self, Login},
+    producer::worker::create_new_items,
+};
+use std::sync::Arc;
 
-use crate::{adapter, config::SharedAppState};
+use crate::{adapter, config::AppState};
 
 #[tokio::main]
-pub async fn serve(app_state: SharedAppState, addr: &str) {
+pub async fn serve(app_state: Arc<AppState>, addr: &str) {
     let gateway = Router::new()
         .route("/auth", get(adapter::auth::authorize))
         .route_layer(middleware::from_fn(authorize));
@@ -44,17 +48,28 @@ pub async fn serve(app_state: SharedAppState, addr: &str) {
     let app = Router::new()
         .nest("/", gateway)
         .nest("/", protected)
-        .with_state(app_state);
+        .with_state(app_state.clone());
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
+
+    tokio::spawn(async move {
+        let AppState { conn, config, .. } = &*app_state;
+
+        loop {
+            let _ = create_new_items(&conn, &config.producer.proxy);
+            tokio::time::sleep(std::time::Duration::from_secs(config.producer.polling_frequency)).await;
+        }
+    });
 }
 
 async fn authenticate(
-    State(SharedAppState { server_secret, .. }): State<SharedAppState>,
+    State(app_state): State<Arc<AppState>>,
     req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
+    let AppState { server_secret, .. } = &*app_state;
+
     let auth_header = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -66,7 +81,7 @@ async fn authenticate(
         .last()
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    if token::verify(access, &server_secret).is_ok() {
+    if token::verify(access, server_secret).is_ok() {
         Ok(next.run(req).await)
     } else {
         Err(StatusCode::UNAUTHORIZED)

@@ -1,7 +1,7 @@
-use std::fs::OpenOptions;
+use std::{fs::OpenOptions, sync::Arc};
 
 use clap::{Parser, Subcommand};
-use config::{AppState, SharedAppState};
+use config::AppState;
 use daemonize::Daemonize;
 
 mod config;
@@ -62,21 +62,19 @@ fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            let app_state = SharedAppState::new();
+            let app_state = Arc::new(AppState::new());
 
             if *daemon {
                 let daemonize = Daemonize::new().pid_file(&app_state.config.daemon.pid_file);
                 let daemonize = match &app_state.config.daemon.error_log {
-                    Some(error_log) => {
-                        daemonize.stderr(
-                            OpenOptions::new()
-                                .create(true)
-                                .append(true)
-                                .read(true)
-                                .open(error_log)
-                                .unwrap()
-                        )
-                    }
+                    Some(error_log) => daemonize.stderr(
+                        OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .read(true)
+                            .open(error_log)
+                            .unwrap(),
+                    ),
                     None => daemonize,
                 };
 
