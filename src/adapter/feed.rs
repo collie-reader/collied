@@ -25,7 +25,7 @@ pub async fn create(
     }
 
     let proxy = &config.producer.proxy;
-    let html_content = fetch_content(&arg.link, proxy).await.unwrap();
+    let html_content = fetch_content(&arg.link, proxy.as_deref()).await.unwrap();
     let is_feed = html_content.parse::<SyndicationFeed>().is_ok();
 
     let link = if is_feed {
@@ -36,7 +36,7 @@ pub async fn create(
         return (StatusCode::BAD_REQUEST, Json(false));
     };
 
-    let title = match fetch_feed_title(&link, proxy).await {
+    let title = match fetch_feed_title(&link, proxy.as_deref()).await {
         Ok(title) => title,
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),
     };
@@ -49,7 +49,7 @@ pub async fn create(
 
     match feed::create(conn, &arg) {
         Ok(_) => {
-            let _ = create_new_items(conn, proxy).await;
+            let _ = create_new_items(conn, proxy.as_deref()).await;
             (StatusCode::OK, Json(true))
         }
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),

@@ -66,7 +66,7 @@ fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            let app_state = Arc::new(AppState::new(&config_path));
+            let app_state = Arc::new(AppState::new(config_path.as_deref()));
 
             if *daemon {
                 let daemonize = Daemonize::new().pid_file(&app_state.config.daemon.pid_file);
@@ -90,9 +90,11 @@ fn main() {
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new keys...");
-                let (access_key, secret_key) =
-                    collie::auth::key::create(AppState::new(&config_path).conn, description)
-                        .unwrap();
+                let (access_key, secret_key) = collie::auth::key::create(
+                    AppState::new(config_path.as_deref()).conn,
+                    description.as_deref(),
+                )
+                .unwrap();
                 println!("Register the following keys with your client. DO NOT share the secret key with anyone.");
                 println!("Access key: {}", access_key);
                 println!("Secret key: {}", secret_key);

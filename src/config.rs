@@ -1,4 +1,8 @@
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 use collie::{
     auth::model::database::keys_table,
@@ -13,7 +17,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config_path: &Option<PathBuf>) -> Self {
+    pub fn new(config_path: Option<&Path>) -> Self {
         let config = read_config(config_path);
         Self {
             conn: open_connection(&config),
@@ -68,7 +72,7 @@ impl Default for Config {
     }
 }
 
-fn read_config(path: &Option<PathBuf>) -> Config {
+fn read_config(path: Option<&Path>) -> Config {
     let config = match path {
         Some(path) => fs::read_to_string(path).unwrap(),
         None => fs::read_to_string("config.toml")
