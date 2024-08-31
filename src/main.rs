@@ -17,6 +17,7 @@ mod adapter {
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    /// Path to the configuration file
     #[arg(short, long)]
     config: Option<String>,
 
@@ -26,15 +27,17 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start the server on the specified port
+    /// Start the server
     Serve {
+        /// Port to listen on
         #[arg(short, long, default_value_t = 33003)]
         port: u16,
 
+        /// Run in daemon mode
         #[arg(short, long, default_value_t = false)]
         daemon: bool,
     },
-    /// Manage keys for client authentication
+    /// Manage keys for authorization
     #[clap(name = "key")]
     Key(Key),
 }
@@ -49,6 +52,7 @@ pub struct Key {
 pub enum KeyCommands {
     /// Generate a new key
     New {
+        /// Human-readable description of the key
         #[arg(long)]
         description: Option<String>,
     },
