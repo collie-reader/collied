@@ -51,20 +51,20 @@ pub async fn serve(app_state: Arc<AppState>, addr: &str) {
         .nest("/", protected)
         .with_state(app_state.clone());
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-
     tokio::spawn(async move {
         let AppState { conn, config, .. } = &*app_state;
 
         loop {
-            let _ = create_new_items(conn, &config.producer.proxy);
+            let _ = create_new_items(conn, &config.producer.proxy).await;
             tokio::time::sleep(std::time::Duration::from_secs(
                 config.producer.polling_frequency,
             ))
             .await;
         }
     });
+
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
 
 async fn authenticate(
