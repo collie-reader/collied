@@ -6,6 +6,7 @@ use axum::{
     routing::{get, patch},
     Router,
 };
+use base64::prelude::*;
 use collie::{
     auth::token::{self, Login},
     producer::worker::create_new_items,
@@ -98,10 +99,19 @@ async fn authorize(mut req: Request, next: Next) -> Result<Response, StatusCode>
         .and_then(|header| header.to_str().ok())
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    let (access, secret) = auth_header
+    let base64 = auth_header
         .split_whitespace()
         .last()
-        .ok_or(StatusCode::UNAUTHORIZED)?
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    let auth_header = String::from_utf8(
+        BASE64_STANDARD
+            .decode(base64)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?,
+    )
+    .unwrap();
+
+    let (access, secret) = auth_header
         .split_once(':')
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
