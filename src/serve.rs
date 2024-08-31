@@ -13,10 +13,10 @@ use collie::{
 };
 use std::sync::Arc;
 
-use crate::{adapter, config::AppState};
+use crate::{adapter, config::Context};
 
 #[tokio::main]
-pub async fn serve(app_state: Arc<AppState>, addr: &str) {
+pub async fn serve(ctx: Arc<Context>, addr: &str) {
     let gateway = Router::new()
         .route("/auth", get(adapter::auth::authorize))
         .route_layer(middleware::from_fn(authorize));
@@ -41,18 +41,15 @@ pub async fn serve(app_state: Arc<AppState>, addr: &str) {
         )
         .route("/items/:id", patch(adapter::item::update))
         .route("/items/count", get(adapter::item::count_all))
-        .route_layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            authenticate,
-        ));
+        .route_layer(middleware::from_fn_with_state(ctx.clone(), authenticate));
 
     let app = Router::new()
         .nest("/", gateway)
         .nest("/", protected)
-        .with_state(app_state.clone());
+        .with_state(ctx.clone());
 
     tokio::spawn(async move {
-        let AppState { conn, config, .. } = &*app_state;
+        let Context { conn, config, .. } = &*ctx;
 
         loop {
             let _ = create_new_items(conn, config.producer.proxy.as_deref()).await;
@@ -68,11 +65,11 @@ pub async fn serve(app_state: Arc<AppState>, addr: &str) {
 }
 
 async fn authenticate(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     req: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    let AppState { server_secret, .. } = &*app_state;
+    let Context { server_secret, .. } = &*ctx;
 
     let auth_header = req
         .headers()

@@ -1,7 +1,7 @@
 use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
-use config::AppState;
+use config::Context;
 use daemonize::Daemonize;
 
 mod config;
@@ -66,11 +66,11 @@ fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            let app_state = Arc::new(AppState::new(config_path.as_deref()));
+            let ctx = Arc::new(Context::new(config_path.as_deref()));
 
             if *daemon {
-                let daemonize = Daemonize::new().pid_file(&app_state.config.daemon.pid_file);
-                let daemonize = match &app_state.config.daemon.error_log {
+                let daemonize = Daemonize::new().pid_file(&ctx.config.daemon.pid_file);
+                let daemonize = match &ctx.config.daemon.error_log {
                     Some(error_log) => daemonize.stderr(
                         OpenOptions::new()
                             .create(true)
@@ -85,13 +85,13 @@ fn main() {
                 daemonize.start().unwrap();
             }
 
-            serve::serve(app_state, &format!("0.0.0.0:{}", port));
+            serve::serve(ctx, &format!("0.0.0.0:{}", port));
         }
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new keys...");
                 let (access_key, secret_key) = collie::auth::key::create(
-                    AppState::new(config_path.as_deref()).conn,
+                    Context::new(config_path.as_deref()).conn,
                     description.as_deref(),
                 )
                 .unwrap();

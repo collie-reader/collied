@@ -12,13 +12,13 @@ use collie::{
 };
 use std::sync::Arc;
 
-use crate::config::AppState;
+use crate::config::Context;
 
 pub async fn create(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<FeedToCreate>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, config, .. } = &*app_state;
+    let Context { conn, config, .. } = &*ctx;
 
     if arg.link.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(false));
@@ -56,8 +56,8 @@ pub async fn create(
     }
 }
 
-pub async fn read_all(State(app_state): State<Arc<AppState>>) -> (StatusCode, Json<Vec<Feed>>) {
-    let AppState { conn, .. } = &*app_state;
+pub async fn read_all(State(ctx): State<Arc<Context>>) -> (StatusCode, Json<Vec<Feed>>) {
+    let Context { conn, .. } = &*ctx;
     match feed::read_all(conn) {
         Ok(feeds) => (StatusCode::OK, Json(feeds)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(vec![])),
@@ -65,10 +65,10 @@ pub async fn read_all(State(app_state): State<Arc<AppState>>) -> (StatusCode, Js
 }
 
 pub async fn read(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Path(id): Path<i32>,
 ) -> (StatusCode, Json<Option<Feed>>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match feed::read(conn, id) {
         Ok(feed) => (StatusCode::OK, Json(feed)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(None)),
@@ -76,10 +76,10 @@ pub async fn read(
 }
 
 pub async fn update(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<FeedToUpdate>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match feed::update(conn, &arg) {
         Ok(_) => (StatusCode::OK, Json(true)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),
@@ -87,10 +87,10 @@ pub async fn update(
 }
 
 pub async fn delete(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Path(id): Path<i32>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match feed::delete(conn, id) {
         Ok(_) => (StatusCode::OK, Json(true)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),

@@ -6,17 +6,17 @@ use collie::auth::{
 use http::StatusCode;
 use std::sync::Arc;
 
-use crate::config::AppState;
+use crate::config::Context;
 
 pub async fn authorize(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Extension(arg): Extension<Login>,
 ) -> (StatusCode, Json<String>) {
-    let AppState {
+    let Context {
         conn,
         server_secret,
         ..
-    } = &*app_state;
+    } = &*ctx;
     match token::issue(conn, &arg.access, &arg.secret, server_secret) {
         Ok(token) => (StatusCode::OK, Json(token)),
         Err(kind) => match kind {

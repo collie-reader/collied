@@ -5,13 +5,13 @@ use collie::model::item::{
     self, Item, ItemReadOption, ItemToCreate, ItemToUpdate, ItemToUpdateAll,
 };
 
-use crate::config::AppState;
+use crate::config::Context;
 
 pub async fn create(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<ItemToCreate>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match item::create(conn, &arg) {
         Ok(count) => {
             if count > 0 {
@@ -25,10 +25,10 @@ pub async fn create(
 }
 
 pub async fn read_all(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<Vec<Item>>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match item::read_all(conn, &arg) {
         Ok(items) => (StatusCode::OK, Json(items)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(vec![])),
@@ -36,10 +36,10 @@ pub async fn read_all(
 }
 
 pub async fn count_all(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<ItemReadOption>,
 ) -> (StatusCode, Json<i64>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match item::count_all(conn, &arg) {
         Ok(count) => {
             if count > 0 {
@@ -53,10 +53,10 @@ pub async fn count_all(
 }
 
 pub async fn update(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<ItemToUpdate>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match item::update(conn, &arg) {
         Ok(count) => {
             if count > 0 {
@@ -70,10 +70,10 @@ pub async fn update(
 }
 
 pub async fn update_all(
-    State(app_state): State<Arc<AppState>>,
+    State(ctx): State<Arc<Context>>,
     Json(arg): Json<ItemToUpdateAll>,
 ) -> (StatusCode, Json<bool>) {
-    let AppState { conn, .. } = &*app_state;
+    let Context { conn, .. } = &*ctx;
     match item::update_all(conn, &arg) {
         Ok(count) => {
             if count > 0 {

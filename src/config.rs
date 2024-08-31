@@ -6,17 +6,17 @@ use std::{
 
 use collie::{
     auth::model::database::keys_table,
-    model::database::{self, feed_table, items_table, Connection},
+    model::database::{self, feeds_table, items_table, DbConnection},
 };
 use serde::Deserialize;
 
-pub struct AppState {
-    pub conn: Connection,
+pub struct Context {
+    pub conn: DbConnection,
     pub config: Config,
     pub server_secret: String,
 }
 
-impl AppState {
+impl Context {
     pub fn new(config_path: Option<&Path>) -> Self {
         let config = read_config(config_path);
         Self {
@@ -82,14 +82,14 @@ fn read_config(path: Option<&Path>) -> Config {
     toml::from_str(&config).expect("Failed to parse config file.")
 }
 
-fn open_connection(config: &Config) -> Connection {
+fn open_connection(config: &Config) -> DbConnection {
     let db = database::open_connection(&PathBuf::from(&config.database.path)).unwrap();
 
     let _ = database::Migration::new()
-        .add_table(feed_table())
-        .add_table(items_table())
-        .add_table(keys_table())
+        .table(feeds_table())
+        .table(items_table())
+        .table(keys_table())
         .migrate(&db);
 
-    Connection { db: Mutex::new(db) }
+    Mutex::new(db)
 }
