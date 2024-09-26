@@ -7,10 +7,7 @@ use axum::{
     Router,
 };
 use base64::prelude::*;
-use collie::{
-    auth::token::{self, Login},
-    producer::worker::create_new_items,
-};
+use collie::{auth::model::token::Login, auth::service::token, worker::Worker};
 use std::sync::Arc;
 
 use crate::{adapter, config::Context};
@@ -50,9 +47,10 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
 
     tokio::spawn(async move {
         let Context { conn, config, .. } = &*ctx;
+        let worker = Worker::new(conn.clone(), config.producer.proxy.clone());
 
         loop {
-            let _ = create_new_items(conn, config.producer.proxy.as_deref()).await;
+            let _ = worker.execute().await;
             tokio::time::sleep(std::time::Duration::from_secs(
                 config.producer.polling_frequency,
             ))

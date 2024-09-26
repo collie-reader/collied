@@ -4,11 +4,8 @@ use axum::{
     Json,
 };
 use collie::{
-    model::feed::{self, Feed, FeedToCreate, FeedToUpdate},
-    producer::{
-        syndication::{fetch_content, fetch_feed_title, find_feed_link, Feed as SyndicationFeed},
-        worker::create_new_items,
-    },
+    model::feed::{Feed, FeedToCreate, FeedToUpdate},
+    service::feed,
 };
 use std::sync::Arc;
 
@@ -19,39 +16,8 @@ pub async fn create(
     Json(arg): Json<FeedToCreate>,
 ) -> (StatusCode, Json<bool>) {
     let Context { conn, config, .. } = &*ctx;
-
-    if arg.link.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(false));
-    }
-
-    let proxy = &config.producer.proxy;
-    let html_content = fetch_content(&arg.link, proxy.as_deref()).await.unwrap();
-    let is_feed = html_content.parse::<SyndicationFeed>().is_ok();
-
-    let link = if is_feed {
-        arg.link.clone()
-    } else if let Some(rss_link) = find_feed_link(&html_content).unwrap() {
-        rss_link
-    } else {
-        return (StatusCode::BAD_REQUEST, Json(false));
-    };
-
-    let title = match fetch_feed_title(&link, proxy.as_deref()).await {
-        Ok(title) => title,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),
-    };
-
-    let arg = FeedToCreate {
-        title,
-        link,
-        fetch_old_items: arg.fetch_old_items,
-    };
-
-    match feed::create(conn, &arg) {
-        Ok(_) => {
-            let _ = create_new_items(conn, proxy.as_deref()).await;
-            (StatusCode::OK, Json(true))
-        }
+    match feed::create(conn, &arg, config.producer.proxy.as_deref()).await {
+        Ok(_) => (StatusCode::OK, Json(true)),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, Json(false)),
     }
 }

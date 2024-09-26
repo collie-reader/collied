@@ -1,8 +1,5 @@
 use axum::{extract::State, Extension, Json};
-use collie::auth::{
-    error::Error,
-    token::{self, Login},
-};
+use collie::auth::{error::Error, model::token::Login, service::token};
 use http::StatusCode;
 use std::sync::Arc;
 

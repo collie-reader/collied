@@ -1,6 +1,7 @@
 use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
+use collie::auth;
 use config::Context;
 use daemonize::Daemonize;
 
@@ -94,7 +95,7 @@ fn main() {
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new keys...");
-                let (access_key, secret_key) = collie::auth::key::create(
+                let (access_key, secret_key) = auth::service::key::create(
                     Context::new(config_path.as_deref()).conn,
                     description.as_deref(),
                 )

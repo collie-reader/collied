@@ -1,12 +1,13 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 
 use collie::{
-    auth::model::database::keys_table,
-    model::database::{self, feeds_table, items_table, DbConnection},
+    auth::repository::database::keys_table,
+    auth::service::key,
+    repository::database::{self, feeds_table, items_table, DbConnection},
 };
 use serde::Deserialize;
 
@@ -22,7 +23,7 @@ impl Context {
         Self {
             conn: open_connection(&config),
             config,
-            server_secret: collie::auth::key::generate_key(),
+            server_secret: key::generate(),
         }
     }
 }
@@ -91,5 +92,5 @@ fn open_connection(config: &Config) -> DbConnection {
         .table(keys_table())
         .migrate(&db);
 
-    Mutex::new(db)
+    Arc::new(Mutex::new(db))
 }

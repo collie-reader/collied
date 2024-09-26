@@ -365,6 +365,8 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 [[package]]
 name = "collie"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b27e1499bad7bb31560f2ae5b4a09a3d6e0627aeef009dfaabb553d278bd65a"
 dependencies = [
  "collie-auth",
  "collie-core",
@@ -373,6 +375,8 @@ dependencies = [
 [[package]]
 name = "collie-auth"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11dddba3cbc6dd990f49469ed46e9808745010526907b8bfff7d8ea8ea60829f"
 dependencies = [
  "chrono",
  "collie-core",
@@ -389,6 +393,8 @@ dependencies = [
 [[package]]
 name = "collie-core"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4918c46b761872252d17c09336a8272e93d22e6719631954cbbb6e86c6e12e04"
 dependencies = [
  "atom_syndication",
  "chrono",
