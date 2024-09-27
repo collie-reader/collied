@@ -7,4 +7,4 @@ FROM debian:bookworm-slim
 COPY --from=builder /usr/src/collied/target/release/collied /usr/local/bin/collied
 ENV PORT=3000
 EXPOSE $PORT
-CMD ["collied", "-p", $PORT]
+CMD ["collied", "-p", "$PORT"]
