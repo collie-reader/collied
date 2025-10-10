@@ -31,7 +31,7 @@ enum Commands {
     /// Start the server
     Serve {
         /// Port to listen on
-        #[arg(short, long, default_value_t = 33003)]
+        #[arg(short, long, default_value_t = 3000)]
         port: u16,
 
         /// Run in daemon mode
