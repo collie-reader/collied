@@ -7,8 +7,13 @@ use crate::config::Context;
 
 pub async fn authorize(
     State(ctx): State<Arc<Context>>,
-    Extension(arg): Extension<Login>,
+    login: Option<Extension<Login>>,
 ) -> (StatusCode, Json<String>) {
+    let Extension(arg) = match login {
+        Some(ext) => ext,
+        None => return (StatusCode::UNAUTHORIZED, Json("".to_string())),
+    };
+
     let Context {
         conn,
         server_secret,

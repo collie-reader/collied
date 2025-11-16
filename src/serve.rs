@@ -8,8 +8,10 @@ use axum::{
 };
 use base64::prelude::*;
 use collie::{auth::model::token::Login, auth::service::token, worker::Worker};
-use std::{sync::Arc, time::Duration};
-use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::PeerIpKeyExtractor, GovernorLayer,
+};
 use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, timeout::TimeoutLayer};
 
 use crate::{adapter, config::Context};
@@ -53,18 +55,19 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
     let governor_conf = GovernorConfigBuilder::default()
         .per_second(10)
         .burst_size(30)
+        .key_extractor(PeerIpKeyExtractor)
         .finish()
         .unwrap();
 
     let app = Router::new()
-        .nest("/", gateway)
-        .nest("/", protected)
+        .merge(gateway)
+        .merge(protected)
+        .layer(middleware::from_fn(log_request))
         .layer(cors)
         .layer(GovernorLayer {
             config: Arc::new(governor_conf),
         })
         .layer(middleware::from_fn(add_security_headers))
-        .layer(middleware::from_fn(log_request))
         .layer(TimeoutLayer::new(Duration::from_secs(30)))
         .layer(RequestBodyLimitLayer::new(1024 * 1024)) // 1MB limit
         .with_state(ctx.clone());
@@ -90,7 +93,8 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
         }
     };
 
-    if let Err(e) = axum::serve(listener, app).await {
+    let make_service = app.into_make_service_with_connect_info::<SocketAddr>();
+    if let Err(e) = axum::serve(listener, make_service).await {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
@@ -144,8 +148,7 @@ async fn authorize(mut req: Request, next: Next) -> Result<Response, StatusCode>
         .split_once(':')
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    // Input validation - keys are 16 characters
-    if access.len() != 16 || secret.len() != 16 {
+    if access.is_empty() || secret.is_empty() {
         return Err(StatusCode::UNAUTHORIZED);
     }
 

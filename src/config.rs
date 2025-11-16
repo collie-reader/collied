@@ -9,7 +9,15 @@ use collie::{
     auth::service::key,
     repository::database::{self, feeds_table, items_table, DbConnection},
 };
+use sea_query::{ColumnDef, Iden, Table, TableStatement};
 use serde::Deserialize;
+
+#[derive(Iden)]
+pub enum Settings {
+    Table,
+    Key,
+    Value,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -30,10 +38,12 @@ pub struct Context {
 impl Context {
     pub fn new(config_path: Option<&Path>) -> Result<Self, ConfigError> {
         let config = read_config(config_path)?;
+        let conn = open_connection(&config)?;
+        let server_secret = load_or_generate_secret(&conn)?;
         Ok(Self {
-            conn: open_connection(&config)?,
+            conn,
             config,
-            server_secret: key::generate(),
+            server_secret,
         })
     }
 }
@@ -83,6 +93,22 @@ impl Default for Config {
     }
 }
 
+pub fn settings_table() -> Vec<TableStatement> {
+    let create_stmt = Table::create()
+        .table(Settings::Table)
+        .if_not_exists()
+        .col(
+            ColumnDef::new(Settings::Key)
+                .text()
+                .not_null()
+                .primary_key(),
+        )
+        .col(ColumnDef::new(Settings::Value).text().not_null())
+        .to_owned();
+
+    vec![TableStatement::Create(create_stmt)]
+}
+
 fn read_config(path: Option<&Path>) -> Result<Config, ConfigError> {
     let config = match path {
         Some(path) => fs::read_to_string(path)?,
@@ -101,7 +127,31 @@ fn open_connection(config: &Config) -> Result<DbConnection, ConfigError> {
         .table(feeds_table())
         .table(items_table())
         .table(keys_table())
+        .table(settings_table())
         .migrate(&db);
 
     Ok(Arc::new(Mutex::new(db)))
+}
+
+fn load_or_generate_secret(conn: &DbConnection) -> Result<String, ConfigError> {
+    let db = conn.lock().unwrap();
+
+    let result: Result<String, _> = db.query_row(
+        "SELECT value FROM settings WHERE key = 'server_secret'",
+        [],
+        |row| row.get(0),
+    );
+
+    match result {
+        Ok(secret) => Ok(secret),
+        Err(_) => {
+            let new_secret = key::generate();
+            db.execute(
+                "INSERT INTO settings (key, value) VALUES ('server_secret', ?1)",
+                [&new_secret],
+            )
+            .map_err(|e| ConfigError::Database(e.to_string()))?;
+            Ok(new_secret)
+        }
+    }
 }

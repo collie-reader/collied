@@ -453,6 +453,8 @@ dependencies = [
  "http 1.1.0",
  "log",
  "pretty_env_logger",
+ "rusqlite",
+ "sea-query",
  "serde",
  "serde_json",
  "thiserror",
