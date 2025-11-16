@@ -11,6 +11,16 @@ use collie::{
 };
 use serde::Deserialize;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("Failed to read config file: {0}")]
+    Read(#[from] std::io::Error),
+    #[error("Failed to parse config file: {0}")]
+    Parse(#[from] toml::de::Error),
+    #[error("Failed to open database: {0}")]
+    Database(String),
+}
+
 pub struct Context {
     pub conn: DbConnection,
     pub config: Config,
@@ -18,13 +28,13 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(config_path: Option<&Path>) -> Self {
-        let config = read_config(config_path);
-        Self {
-            conn: open_connection(&config),
+    pub fn new(config_path: Option<&Path>) -> Result<Self, ConfigError> {
+        let config = read_config(config_path)?;
+        Ok(Self {
+            conn: open_connection(&config)?,
             config,
             server_secret: key::generate(),
-        }
+        })
     }
 }
 
@@ -73,18 +83,19 @@ impl Default for Config {
     }
 }
 
-fn read_config(path: Option<&Path>) -> Config {
+fn read_config(path: Option<&Path>) -> Result<Config, ConfigError> {
     let config = match path {
-        Some(path) => fs::read_to_string(path).unwrap(),
+        Some(path) => fs::read_to_string(path)?,
         None => fs::read_to_string("config.toml")
-            .unwrap_or(fs::read_to_string("/etc/collied/config.toml").unwrap()),
+            .or_else(|_| fs::read_to_string("/etc/collied/config.toml"))?,
     };
 
-    toml::from_str(&config).expect("Failed to parse config file.")
+    Ok(toml::from_str(&config)?)
 }
 
-fn open_connection(config: &Config) -> DbConnection {
-    let db = database::open_connection(&PathBuf::from(&config.database.path)).unwrap();
+fn open_connection(config: &Config) -> Result<DbConnection, ConfigError> {
+    let db = database::open_connection(&PathBuf::from(&config.database.path))
+        .map_err(|e| ConfigError::Database(e.to_string()))?;
 
     let _ = database::Migration::new()
         .table(feeds_table())
@@ -92,5 +103,5 @@ fn open_connection(config: &Config) -> DbConnection {
         .table(keys_table())
         .migrate(&db);
 
-    Arc::new(Mutex::new(db))
+    Ok(Arc::new(Mutex::new(db)))
 }

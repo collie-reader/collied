@@ -1,4 +1,9 @@
-use std::{fs::OpenOptions, path::PathBuf, sync::Arc};
+use std::{
+    fs::OpenOptions,
+    io::{self, Write},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use clap::{Parser, Subcommand};
 use collie::auth;
@@ -71,7 +76,13 @@ fn main() {
                 if *daemon { "daemon" } else { "foreground" }
             );
 
-            let ctx = Arc::new(Context::new(config_path.as_deref()));
+            let ctx = match Context::new(config_path.as_deref()) {
+                Ok(ctx) => Arc::new(ctx),
+                Err(e) => {
+                    eprintln!("Failed to initialize server: {}", e);
+                    std::process::exit(1);
+                }
+            };
 
             if *daemon {
                 let daemonize = Daemonize::new().pid_file(&ctx.config.daemon.pid_file);
@@ -82,12 +93,18 @@ fn main() {
                             .append(true)
                             .read(true)
                             .open(error_log)
-                            .unwrap(),
+                            .unwrap_or_else(|e| {
+                                eprintln!("Failed to open error log file: {}", e);
+                                std::process::exit(1);
+                            }),
                     ),
                     None => daemonize,
                 };
 
-                daemonize.start().unwrap();
+                if let Err(e) = daemonize.start() {
+                    eprintln!("Failed to daemonize: {}", e);
+                    std::process::exit(1);
+                }
             }
 
             serve::serve(ctx, &format!("0.0.0.0:{}", port));
@@ -95,14 +112,36 @@ fn main() {
         Commands::Key(key) => match &key.commands {
             KeyCommands::New { description } => {
                 println!("Generating new keys...");
-                let (access_key, secret_key) = auth::service::key::create(
-                    Context::new(config_path.as_deref()).conn,
-                    description.as_deref(),
-                )
-                .unwrap();
+                let ctx = match Context::new(config_path.as_deref()) {
+                    Ok(ctx) => ctx,
+                    Err(e) => {
+                        eprintln!("Failed to initialize: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                let (access_key, secret_key) =
+                    match auth::service::key::create(ctx.conn, description.as_deref()) {
+                        Ok(keys) => keys,
+                        Err(e) => {
+                            eprintln!("Failed to create keys: {}", e);
+                            std::process::exit(1);
+                        }
+                    };
+
+                println!();
                 println!("Register the following keys with your client. DO NOT share the secret key with anyone.");
-                println!("Access key: {}", access_key);
-                println!("Secret key: {}", secret_key);
+                println!("Save these keys now. The secret key will NOT be shown again.");
+                println!("- Access key: {}", access_key);
+                println!("- Secret key: {}", secret_key);
+                println!();
+
+                print!("Press Enter to clear the screen...");
+                let _ = io::stdout().flush();
+                let _ = io::stdin().read_line(&mut String::new());
+
+                print!("\x1B[2J\x1B[1;1H"); // ANSI escape to clear screen
+                let _ = io::stdout().flush();
+                println!("Key generation complete.");
             }
         },
     }

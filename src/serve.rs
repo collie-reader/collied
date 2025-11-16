@@ -1,6 +1,6 @@
 use axum::{
     extract::{Request, State},
-    http::StatusCode,
+    http::{header::HeaderValue, Method, StatusCode},
     middleware::{self, Next},
     response::Response,
     routing::{get, patch},
@@ -8,7 +8,9 @@ use axum::{
 };
 use base64::prelude::*;
 use collie::{auth::model::token::Login, auth::service::token, worker::Worker};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+use tower_http::{cors::CorsLayer, limit::RequestBodyLimitLayer, timeout::TimeoutLayer};
 
 use crate::{adapter, config::Context};
 
@@ -40,10 +42,31 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
         .route("/items/count", get(adapter::item::count_all))
         .route_layer(middleware::from_fn_with_state(ctx.clone(), authenticate));
 
+    let cors = CorsLayer::new()
+        .allow_origin([
+            "tauri://localhost".parse::<HeaderValue>().unwrap(),
+            "https://tauri.localhost".parse::<HeaderValue>().unwrap(),
+        ])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+        .allow_headers([http::header::AUTHORIZATION, http::header::CONTENT_TYPE]);
+
+    let governor_conf = GovernorConfigBuilder::default()
+        .per_second(10)
+        .burst_size(30)
+        .finish()
+        .unwrap();
+
     let app = Router::new()
         .nest("/", gateway)
         .nest("/", protected)
+        .layer(cors)
+        .layer(GovernorLayer {
+            config: Arc::new(governor_conf),
+        })
+        .layer(middleware::from_fn(add_security_headers))
         .layer(middleware::from_fn(log_request))
+        .layer(TimeoutLayer::new(Duration::from_secs(30)))
+        .layer(RequestBodyLimitLayer::new(1024 * 1024)) // 1MB limit
         .with_state(ctx.clone());
 
     tokio::spawn(async move {
@@ -59,8 +82,18 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
         }
     });
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("Failed to bind to {}: {}", addr, e);
+            std::process::exit(1);
+        }
+    };
+
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    }
 }
 
 async fn authenticate(
@@ -105,11 +138,22 @@ async fn authorize(mut req: Request, next: Next) -> Result<Response, StatusCode>
             .decode(base64)
             .map_err(|_| StatusCode::UNAUTHORIZED)?,
     )
-    .unwrap();
+    .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     let (access, secret) = auth_header
         .split_once(':')
         .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    // Input validation - keys are 16 characters
+    if access.len() != 16 || secret.len() != 16 {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let is_valid_key_char = |c: char| c.is_ascii_alphanumeric() || "!@#$%^&*_-".contains(c);
+
+    if !access.chars().all(is_valid_key_char) || !secret.chars().all(is_valid_key_char) {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
 
     let login = Login {
         access: access.to_string(),
@@ -136,6 +180,35 @@ async fn log_request(req: Request, next: Next) -> Response {
     let status = response.status().as_u16();
 
     println!("--> [{}] {} {} {}ms", method, path, status, elapsed);
+
+    response
+}
+
+async fn add_security_headers(req: Request, next: Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+
+    headers.insert("X-Frame-Options", HeaderValue::from_static("DENY"));
+    headers.insert(
+        "X-Content-Type-Options",
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        "X-XSS-Protection",
+        HeaderValue::from_static("1; mode=block"),
+    );
+    headers.insert(
+        "Referrer-Policy",
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    headers.insert(
+        "Content-Security-Policy",
+        HeaderValue::from_static("default-src 'self'"),
+    );
+    headers.insert(
+        "Cache-Control",
+        HeaderValue::from_static("no-store, no-cache, must-revalidate"),
+    );
 
     response
 }
