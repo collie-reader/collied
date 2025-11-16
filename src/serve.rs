@@ -43,6 +43,7 @@ pub async fn serve(ctx: Arc<Context>, addr: &str) {
     let app = Router::new()
         .nest("/", gateway)
         .nest("/", protected)
+        .layer(middleware::from_fn(log_request))
         .with_state(ctx.clone());
 
     tokio::spawn(async move {
@@ -121,4 +122,20 @@ async fn authorize(mut req: Request, next: Next) -> Result<Response, StatusCode>
 
 async fn echo() -> &'static str {
     "hello-world"
+}
+
+async fn log_request(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+
+    println!("<-- [{}] {}", method, path);
+
+    let start = std::time::Instant::now();
+    let response = next.run(req).await;
+    let elapsed = start.elapsed().as_millis();
+    let status = response.status().as_u16();
+
+    println!("--> [{}] {} {} {}ms", method, path, status, elapsed);
+
+    response
 }
