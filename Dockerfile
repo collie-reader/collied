@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -r -s /bin/false collied
+RUN useradd -r -s /bin/false collied \
+    && mkdir -p /etc/collied \
+    && chown collied:collied /etc/collied
 USER collied
 
 COPY --from=builder /usr/src/collied/target/release/collied /usr/local/bin/collied
