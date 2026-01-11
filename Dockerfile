@@ -1,10 +1,23 @@
-FROM rust:1.81 AS builder
+FROM rust:1.85 AS builder
 WORKDIR /usr/src/collied
+
+COPY Cargo.toml Cargo.lock ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release && rm -rf src
+
 COPY . .
-RUN cargo build --release
+RUN touch src/main.rs && cargo build --release
 
 FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -r -s /bin/false collied
+USER collied
+
 COPY --from=builder /usr/src/collied/target/release/collied /usr/local/bin/collied
+
 ENV PORT=3000
 EXPOSE $PORT
-CMD ["collied", "-p", "$PORT"]
+CMD ["sh", "-c", "collied serve --port $PORT"]
