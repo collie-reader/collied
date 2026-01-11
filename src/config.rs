@@ -110,13 +110,17 @@ pub fn settings_table() -> Vec<TableStatement> {
 }
 
 fn read_config(path: Option<&Path>) -> Result<Config, ConfigError> {
-    let config = match path {
-        Some(path) => fs::read_to_string(path)?,
+    let config_str = match path {
+        Some(path) => Some(fs::read_to_string(path)?),
         None => fs::read_to_string("config.toml")
-            .or_else(|_| fs::read_to_string("/etc/collied/config.toml"))?,
+            .or_else(|_| fs::read_to_string("/etc/collied/config.toml"))
+            .ok(),
     };
 
-    Ok(toml::from_str(&config)?)
+    match config_str {
+        Some(s) => Ok(toml::from_str(&s)?),
+        None => Ok(Config::default()),
+    }
 }
 
 fn open_connection(config: &Config) -> Result<DbConnection, ConfigError> {
